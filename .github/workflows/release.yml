@@ -24,17 +24,55 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build
 
-      - name: Build distributions
-        run: python -m build
+      - name: Detect package directory
+        id: pkgdir
+        shell: bash
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f python-open-solver/pyproject.toml ]; then
+            echo "dir=python-open-solver" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find pyproject.toml at repository root or ./python-open-solver/." >&2
+            exit 1
+          fi
+
+      - name: Print version from pyproject
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          pkgdir = os.environ.get("PKGDIR", ".")
+          data = tomllib.load(open(os.path.join(pkgdir, "pyproject.toml"), "rb"))
+          print("pyproject version:", data["project"]["version"])
+          PY
+        env:
+          PKGDIR: ${{ steps.pkgdir.outputs.dir }}
+
+      - name: Clean dist
+        shell: bash
+        run: |
+          rm -rf "${{ steps.pkgdir.outputs.dir }}/dist"
+          rm -rf "${{ steps.pkgdir.outputs.dir }}/build"
 
       - name: Show build outputs
         run: |
           echo "Repo root contents:"
           ls -la
-          echo "dist contents:"
-          ls -la dist || true
+          echo "dist contents (before build):"
+          ls -la "${{ steps.pkgdir.outputs.dir }}/dist" || true
+
+      - name: Build distributions
+        shell: bash
+        run: |
+          python -m build --outdir "${{ steps.pkgdir.outputs.dir }}/dist" "${{ steps.pkgdir.outputs.dir }}"
+
+      - name: Show dist contents (after build)
+        shell: bash
+        run: |
+          ls -la "${{ steps.pkgdir.outputs.dir }}/dist"
 
       - name: Publish to PyPI (Trusted Publisher / OIDC)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: dist
+          packages-dir: ${{ steps.pkgdir.outputs.dir }}/dist
