@@ -1,6 +1,8 @@
+[![Latest Release](https://img.shields.io/github/v/release/aliemen/py-open-fft-poisson-solver)](https://github.com/aliemen/py-open-fft-poisson-solver/releases/latest)
+
 # open-poisson-solver
 
-Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-grid algorithm, following the `FFTOpenPoissonSolver` Hockney implementation in the [IPPL](https://github.com/IPPL-framework/ippl) C++ library.
+Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-grid algorithm, following the `FFTOpenPoissonSolver` Hockney implementation in the [IPPL](https://github.com/IPPL-framework/ippl) C++ library. For more information on the implementation, scroll to the bottom of this README.
 
 ## Quickstart
 
@@ -103,4 +105,4 @@ $$
 matching the SI convention. Otherwise, the solver works in code units with
 $\nabla^2 \phi = -\rho$.
 
-For more information, consider reading [https://arxiv.org/abs/2405.02603](https://doi.org/10.48550/arXiv.2405.02603) by one of my colleagues Mayani et al. (2025). The paper outlines the implementation and specifics of this algorithm together as implemented in IPPL-framework/ippl.
+For more information, consider reading [arXiv:2405.02603](https://doi.org/10.48550/arXiv.2405.02603) by my colleagues Mayani et al. (2025). The paper outlines the implementation and specifics of this algorithm together as implemented in IPPL-framework/ippl. 
