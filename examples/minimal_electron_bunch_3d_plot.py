@@ -31,6 +31,69 @@ def generate_truncated_normal_bunch(
     return particles[:N]
 
 
+def generate_truncated_homogeneous_bunch(
+    rng: np.random.Generator,
+    *,
+    N: int,
+    sigma: np.ndarray,
+    nsigma: float = 3.0,
+) -> np.ndarray:
+    """
+    Generate particles from a homogeneous (uniform) distribution centered at 0,
+    truncated to:
+      |x_d| <= nsigma*sigma_d  for each coordinate d.
+    """
+    sigma = np.asarray(sigma, dtype=float)
+    if sigma.shape != (3,):
+        raise ValueError(f"sigma must have shape (3,), got {sigma.shape}")
+    if N <= 0:
+        raise ValueError("N must be positive")
+
+    low = -nsigma * sigma
+    high = nsigma * sigma
+    particles = rng.uniform(low=low, high=high, size=(N, 3))
+    return particles
+
+
+def generate_true_uniform_sphere_bunch(
+    rng: np.random.Generator,
+    *,
+    N: int,
+    sigma: np.ndarray,
+    nsigma: float = 3.0,
+) -> np.ndarray:
+    """
+    Generate particles uniformly in a sphere of radius a, centered at 0.
+
+    We interpret the input `sigma` (as used in the earlier truncation examples)
+    as the sphere scale and choose:
+      a = nsigma * sigma
+
+    For isotropic use, `sigma` should be a length-3 array with equal components.
+    """
+    sigma = np.asarray(sigma, dtype=float)
+    if sigma.shape != (3,):
+        raise ValueError(f"sigma must have shape (3,), got {sigma.shape}")
+    if N <= 0:
+        raise ValueError("N must be positive")
+    if not np.allclose(sigma, sigma[0]):
+        raise ValueError("generate_true_uniform_sphere_bunch expects isotropic sigma (all components equal)")
+
+    a = float(nsigma * sigma[0])
+
+    # Sample directions uniformly on the sphere via normalized Gaussians.
+    dir_vec = rng.normal(size=(N, 3))
+    dir_norm = np.linalg.norm(dir_vec, axis=1)
+    dir_vec = dir_vec / dir_norm[:, None]
+
+    # Sample radius with pdf proportional to r^2:
+    # r = a * u^(1/3).
+    u = rng.random(size=N)
+    r = a * (u ** (1.0 / 3.0))
+    particles = dir_vec * r[:, None]
+    return particles
+
+
 def plot_phi_xy_surface(phi: np.ndarray, origin: np.ndarray, spacing: np.ndarray) -> None:
     """Plot the z-averaged potential phi(x,y) as a 3D surface."""
     import matplotlib.pyplot as plt
@@ -82,6 +145,9 @@ def main() -> None:
     sigma = np.array([1e-3, 1e-3, 1e-3], dtype=float)
     nsigma = 3.0
 
+    # Homogeneous sphere bunch (sample uniformly inside a sphere).
+    # Radius is chosen as: a = nsigma * sigma (matching the earlier truncation scale choice).
+    # particles = generate_true_uniform_sphere_bunch(
     particles = generate_truncated_normal_bunch(
         rng,
         N=N,
@@ -100,11 +166,10 @@ def main() -> None:
     out = solve_open_poisson_hockney(
         particles,
         charge_per_particle=charge_per_particle,
-        grid_shape=(32, 32, 32),
+        grid_shape=(64, 64, 64),
         padding=0.3,
         eps0=8.8541878128e-12,
     )
-
     plot_phi_xy_surface(phi=out["phi_grid"], origin=out["origin"], spacing=out["spacing"])
 
     # Info: can access E field at particle positions with out["E_particles"]

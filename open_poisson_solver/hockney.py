@@ -112,7 +112,9 @@ def scatter_cic(
       - charge_per_particle (scalar)
       - particle_charges (shape (N,))
 
-    Returns rho on the grid as charge density, so that sum(rho * dV) == total charge.
+    Returns a scalar grid ``rho`` containing **charge per cell**.
+
+    With this convention, ``rho.sum() == total charge`` (up to numerical floating error).
 
     Outside-domain policy: raises if any particle cannot deposit to its 8 neighbors.
     """
@@ -141,21 +143,20 @@ def scatter_cic(
     fz = 1.0 - wz0
     wx1, wy1, wz1 = fx, fy, fz
 
-    dV = float(np.prod(grid.spacing))
-    q_over_dV = q / dV
-
     ix = i0[:, 0]
     iy = i0[:, 1]
     iz = i0[:, 2]
 
-    np.add.at(rho, (ix, iy, iz), q_over_dV * (wx0 * wy0 * wz0))
-    np.add.at(rho, (ix + 1, iy, iz), q_over_dV * (wx1 * wy0 * wz0))
-    np.add.at(rho, (ix, iy + 1, iz), q_over_dV * (wx0 * wy1 * wz0))
-    np.add.at(rho, (ix, iy, iz + 1), q_over_dV * (wx0 * wy0 * wz1))
-    np.add.at(rho, (ix + 1, iy + 1, iz), q_over_dV * (wx1 * wy1 * wz0))
-    np.add.at(rho, (ix + 1, iy, iz + 1), q_over_dV * (wx1 * wy0 * wz1))
-    np.add.at(rho, (ix, iy + 1, iz + 1), q_over_dV * (wx0 * wy1 * wz1))
-    np.add.at(rho, (ix + 1, iy + 1, iz + 1), q_over_dV * (wx1 * wy1 * wz1))
+    # Deposit charge (not charge density). The discrete convolution kernel already
+    # uses physical distances (including cell size), so the charge must match it.
+    np.add.at(rho, (ix, iy, iz), q * (wx0 * wy0 * wz0))
+    np.add.at(rho, (ix + 1, iy, iz), q * (wx1 * wy0 * wz0))
+    np.add.at(rho, (ix, iy + 1, iz), q * (wx0 * wy1 * wz0))
+    np.add.at(rho, (ix, iy, iz + 1), q * (wx0 * wy0 * wz1))
+    np.add.at(rho, (ix + 1, iy + 1, iz), q * (wx1 * wy1 * wz0))
+    np.add.at(rho, (ix + 1, iy, iz + 1), q * (wx1 * wy0 * wz1))
+    np.add.at(rho, (ix, iy + 1, iz + 1), q * (wx0 * wy1 * wz1))
+    np.add.at(rho, (ix + 1, iy + 1, iz + 1), q * (wx1 * wy1 * wz1))
 
     return rho
 
@@ -292,7 +293,7 @@ def convolve_open_poisson_hockney(
     """
     Solve laplace(phi) = -rho on an open domain using Hockney doubled-grid convolution.
 
-    rho is the physical-grid charge density (Nx,Ny,Nz). Returns phi on the physical grid.
+    ``rho`` is the physical-grid **charge per cell** (Nx,Ny,Nz). Returns phi on the physical grid.
     """
     if rho.ndim != 3:
         raise ValueError(f"rho must be 3D, got shape {rho.shape}")
@@ -372,6 +373,7 @@ def solve_open_poisson_hockney(
     )
 
     return {
+        # rho_grid stores **charge per cell** (consistent with the convolution kernel).
         "rho_grid": rho,
         "phi_grid": phi,
         "E_grid": E_grid,

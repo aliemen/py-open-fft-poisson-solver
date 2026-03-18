@@ -19,9 +19,7 @@ def main() -> None:
     charges = np.array([2.0, -1.0])
 
     rho = scatter_cic(particles, grid=grid, particle_charges=charges)
-    dV = float(np.prod(grid.spacing))
-
-    assert np.isclose(rho.sum() * dV, charges.sum())
+    assert np.isclose(rho.sum(), charges.sum())
     assert rho[1, 1, 1] == 2.0
     assert rho[2, 1, 1] == -1.0
 

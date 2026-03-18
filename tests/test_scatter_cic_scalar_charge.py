@@ -19,9 +19,8 @@ def main() -> None:
     assert rho[1, 1, 1] == 2.0  # dV=1
     assert np.isclose(rho.sum(), 2.0)
 
-    # Sum rule: sum(rho)*dV == total charge
-    dV = float(np.prod(grid.spacing))
-    assert np.isclose(rho.sum() * dV, 2.0)
+    # Sum rule: sum(rho) == total charge (rho stores charge per cell)
+    assert np.isclose(rho.sum(), 2.0)
 
     print("OK")
 
