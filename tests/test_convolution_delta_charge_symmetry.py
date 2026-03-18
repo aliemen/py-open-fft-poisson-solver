@@ -2,7 +2,7 @@ import numpy as np
 
 
 def main() -> None:
-    from open_poisson_solver import convolve_open_poisson_hockney
+    from pyHockneySolver import convolve_open_poisson_hockney
 
     spacing = np.array([1.0, 1.0, 1.0])
     rho = np.zeros((16, 16, 16), dtype=float)

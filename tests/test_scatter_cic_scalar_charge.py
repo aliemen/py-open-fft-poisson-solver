@@ -2,7 +2,7 @@ import numpy as np
 
 
 def main() -> None:
-    from open_poisson_solver import GridSpec, scatter_cic
+    from pyHockneySolver import GridSpec, scatter_cic
 
     grid = GridSpec(
         origin=np.array([0.0, 0.0, 0.0]),

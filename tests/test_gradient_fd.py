@@ -2,7 +2,7 @@ import numpy as np
 
 
 def main() -> None:
-    from open_poisson_solver import gradient_fd
+    from pyHockneySolver import gradient_fd
 
     Nx, Ny, Nz = 6, 5, 4
     spacing = np.array([2.0, 3.0, 5.0])

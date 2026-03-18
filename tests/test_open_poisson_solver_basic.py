@@ -2,7 +2,7 @@ import numpy as np
 
 
 def main() -> None:
-    from open_poisson_solver import solve_open_poisson_hockney
+    from pyHockneySolver import solve_open_poisson_hockney
 
     rng = np.random.default_rng(0)
 

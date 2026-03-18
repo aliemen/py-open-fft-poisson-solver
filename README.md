@@ -8,7 +8,7 @@ Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-
 
 ```python
 import numpy as np
-from open_poisson_solver import solve_open_poisson_hockney
+from pyHockneySolver import solve_open_poisson_hockney
 
 particles = np.random.normal(size=(10000, 3))
 out = solve_open_poisson_hockney(
@@ -34,8 +34,8 @@ python -m pip install -e python-open-solver
 python python-open-solver/examples/minimal_electron_bunch_3d_plot.py
 ```
 
-This runs a minimal 32³ open-boundary solve for a normally distributed electron bunch
-and shows a 3D surface plot of the potential averaged over the z-axis.
+This runs a minimal $32^3$ open-boundary solve for a normally distributed electron bunch
+and shows a 3D surface plot of the potential averaged over the z-axis. Note that you have to install the package like this, since it is not published on any package manager. 
 
 ## Using in your own code (clone + import)
 
@@ -53,7 +53,7 @@ python3 -m pip install -e python-open-solver
 
 ```python
 import numpy as np
-from open_poisson_solver import solve_open_poisson_hockney
+from pyHockneySolver import solve_open_poisson_hockney
 
 particles = np.random.normal(size=(1000, 3))
 out = solve_open_poisson_hockney(

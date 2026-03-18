@@ -2,7 +2,7 @@ import numpy as np
 
 
 def main() -> None:
-    from open_poisson_solver import greens_function_hockney
+    from pyHockneySolver import greens_function_hockney
 
     spacing = np.array([1.0, 2.0, 3.0])
     physical_shape = (4, 3, 2)

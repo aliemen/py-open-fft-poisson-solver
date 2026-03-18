@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from importlib import metadata as _metadata
+
 from .hockney import (
     GridSpec,
     auto_bbox,
@@ -10,6 +14,17 @@ from .hockney import (
     scatter_cic,
     solve_open_poisson_hockney,
 )
+
+__author__ = "Alexander Liemen"
+__date__ = "2026-03-18"
+
+try:
+    __version__ = _metadata.version("pyHockneySolver")
+except _metadata.PackageNotFoundError:  # pragma: no cover
+    # Fallback for editable installs / direct source execution without installation metadata.
+    __version__ = "0.0.0"
+
+__license__ = "GPL-3.0-or-later"
 
 __all__ = [
     "GridSpec",
