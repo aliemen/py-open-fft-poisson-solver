@@ -25,10 +25,16 @@ jobs:
           python -m pip install build
 
       - name: Build distributions
-        working-directory: python-open-solver
         run: python -m build
+
+      - name: Show build outputs
+        run: |
+          echo "Repo root contents:"
+          ls -la
+          echo "dist contents:"
+          ls -la dist || true
 
       - name: Publish to PyPI (Trusted Publisher / OIDC)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: python-open-solver/dist
+          packages-dir: dist

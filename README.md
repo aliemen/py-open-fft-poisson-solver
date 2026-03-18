@@ -25,13 +25,13 @@ Epart = out["E_particles"]     # (N,3)
 
 ## How to run
 
-From the workspace root:
+From the repository root:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e python-open-solver
-python python-open-solver/examples/minimal_electron_bunch_3d_plot.py
+python -m pip install -e .
+python examples/minimal_electron_bunch_3d_plot.py
 ```
 
 This runs a minimal $32^3$ open-boundary solve for a normally distributed electron bunch
@@ -46,7 +46,7 @@ If you already have NumPy installed, you can clone this repository and use the p
 ```bash
 git clone https://github.com/aliemen/py-open-fft-poisson-solver.git 
 cd py-open-fft-poisson-solver
-python3 -m pip install -e python-open-solver
+python3 -m pip install -e .
 ```
 
 2. Import and run a minimal solve from your own Python code:
@@ -68,7 +68,7 @@ print(E_particles.shape)
 
 ## License
 
-This Python implementation is provided under the same license as IPPL: the GNU General Public License, version 3 or (at your option) any later version. See `python-open-solver/LICENSE` for details and the IPPL project at
+This Python implementation is provided under the same license as IPPL: the GNU General Public License, version 3 or (at your option) any later version. See `LICENSE` for details and the IPPL project at
 [github.com/IPPL-framework/ippl](https://github.com/IPPL-framework/ippl).
 
 ## Mathematical formulation
