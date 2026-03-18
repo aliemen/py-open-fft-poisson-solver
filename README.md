@@ -35,6 +35,35 @@ python python-open-solver/examples/minimal_electron_bunch_3d_plot.py
 This runs a minimal 32³ open-boundary solve for a normally distributed electron bunch
 and shows a 3D surface plot of the potential averaged over the z-axis.
 
+## Using in your own code (clone + import)
+
+If you already have NumPy installed, you can clone this repository and use the package directly. Go into your project, where you want to make the package available.
+
+1. Clone and install the Python package (editable install):
+
+```bash
+git clone https://github.com/aliemen/py-open-fft-poisson-solver.git 
+cd py-open-fft-poisson-solver
+python3 -m pip install -e python-open-solver
+```
+
+2. Import and run a minimal solve from your own Python code:
+
+```python
+import numpy as np
+from open_poisson_solver import solve_open_poisson_hockney
+
+particles = np.random.normal(size=(1000, 3))
+out = solve_open_poisson_hockney(
+    particles,
+    charge_per_particle=1.0,
+    grid_shape=(16, 16, 16),
+)
+phi = out["phi_grid"]
+E_particles = out["E_particles"]
+print(E_particles.shape)
+```
+
 ## License
 
 This Python implementation is provided under the same license as IPPL: the GNU General Public License, version 3 or (at your option) any later version. See `python-open-solver/LICENSE` for details and the IPPL project at
@@ -74,3 +103,4 @@ $$
 matching the SI convention. Otherwise, the solver works in code units with
 $\nabla^2 \phi = -\rho$.
 
+For more information, consider reading [https://arxiv.org/abs/2405.02603](https://doi.org/10.48550/arXiv.2405.02603) by one of my colleagues Mayani et al. (2025). The paper outlines the implementation and specifics of this algorithm together as implemented in IPPL-framework/ippl.
