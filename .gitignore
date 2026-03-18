@@ -17,6 +17,9 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
+# Generated test artifacts
+tests/*.png
+
 # OS / editor
 .DS_Store
 .idea/

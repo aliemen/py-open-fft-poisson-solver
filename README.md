@@ -21,3 +21,17 @@ Egrid = out["E_grid"]          # (Nx,Ny,Nz,3)
 Epart = out["E_particles"]     # (N,3)
 ```
 
+## How to run
+
+From the workspace root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e python-open-solver
+python python-open-solver/tests/test_open_poisson_solver_basic.py
+python python-open-solver/tests/test_open_poisson_solver_plot_zavg.py
+```
+
+The plotting test writes `python-open-solver/tests/phi_zavg.png`.
+
