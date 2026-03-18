@@ -3,6 +3,7 @@ import numpy as np
 
 def main() -> None:
     import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
     from open_poisson_solver import solve_open_poisson_hockney
 
@@ -10,12 +11,12 @@ def main() -> None:
 
     # Normally distributed bunch.
     N = 200_000
-    sigma = np.array([1e-3, 1e-3, 2e-3])
+    sigma = np.array([1e-3, 1e-3, 1e-3])
     particles = rng.normal(size=(N, 3)) * sigma[None, :]
 
     out = solve_open_poisson_hockney(
         particles,
-        charge_per_particle=1.0,
+        charge_per_particle=-1.0,
         grid_shape=(64, 64, 96),
         padding=0.3,
     )
@@ -31,22 +32,34 @@ def main() -> None:
     x = origin[0] + (np.arange(Nx) + 0.5) * spacing[0]
     y = origin[1] + (np.arange(Ny) + 0.5) * spacing[1]
 
-    fig, ax = plt.subplots(figsize=(6, 5), constrained_layout=True)
-    im = ax.imshow(
-        phi_xy.T,
-        origin="lower",
-        extent=(x[0], x[-1], y[0], y[-1]),
-        aspect="auto",
+    X, Y = np.meshgrid(x, y, indexing="ij")
+
+    fig = plt.figure(figsize=(7, 5), constrained_layout=True)
+    ax = fig.add_subplot(111, projection="3d")
+    vmin = float(np.nanmin(phi_xy))
+    vmax = float(np.nanmax(phi_xy))
+    norm = plt.Normalize(vmin=vmin, vmax=vmax)
+    surf = ax.plot_surface(
+        X,
+        Y,
+        phi_xy,
+        rstride=1,
+        cstride=1,
+        linewidth=0,
+        antialiased=True,
+        cmap="viridis",
+        norm=norm,
     )
-    ax.set_title("Open Poisson potential (z-averaged)")
+    ax.set_title("Open Poisson potential (z-averaged) surface")
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label("phi")
+    ax.set_zlabel("phi")
+    fig.colorbar(surf, ax=ax, shrink=0.7, pad=0.1, label="phi")
 
-    outpath = "tests/phi_zavg.png"
+    outpath = "phi_zavg.png"
     fig.savefig(outpath, dpi=150)
     print(f"Wrote {outpath}")
+    plt.show()
 
 
 if __name__ == "__main__":
