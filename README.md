@@ -4,6 +4,13 @@
 
 Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-grid algorithm, following the `FFTOpenPoissonSolver` Hockney implementation in the [IPPL](https://github.com/IPPL-framework/ippl) C++ library. For more information on the implementation, scroll to the bottom of this README.
 
+This package can be used to efficiently solve the electrostatic potential of a particle bunch in free space (open boundary conditions). Runs in $\mathcal{O}(n \log n)$, since it uses FFTs to find the potential. Can calculate the electrostatic potential and electrostatic field on the grid as well as interpolate the electrostatic field to the particle positions (used e.g. for integrating the bunch in time).
+
+Get the newest release [here](https://pypi.org/project/pyHockneySolver/), or via
+```bash
+pip install pyHockneySolver
+```
+
 ## Quickstart
 
 ```python
