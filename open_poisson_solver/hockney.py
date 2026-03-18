@@ -13,7 +13,7 @@ class GridSpec:
     shape: tuple[int, int, int]  # (Nx,Ny,Nz)
 
 
-def _auto_bbox(particles_xyz: np.ndarray, padding: float) -> tuple[np.ndarray, np.ndarray]:
+def auto_bbox(particles_xyz: np.ndarray, padding: float) -> tuple[np.ndarray, np.ndarray]:
     mins = np.min(particles_xyz, axis=0)
     maxs = np.max(particles_xyz, axis=0)
     span = np.maximum(maxs - mins, 1e-30)
@@ -22,14 +22,14 @@ def _auto_bbox(particles_xyz: np.ndarray, padding: float) -> tuple[np.ndarray, n
     return mins, maxs
 
 
-def _make_gridspec(
+def make_gridspec_from_particles(
     particles_xyz: np.ndarray,
     grid_shape: tuple[int, int, int],
     padding: float,
     bbox: tuple[float, float, float, float, float, float] | None,
 ) -> GridSpec:
     if bbox is None:
-        mins, maxs = _auto_bbox(particles_xyz, padding=padding)
+        mins, maxs = auto_bbox(particles_xyz, padding=padding)
     else:
         xmin, xmax, ymin, ymax, zmin, zmax = bbox
         mins = np.array([xmin, ymin, zmin], dtype=float)
@@ -46,33 +46,36 @@ def _make_gridspec(
     return GridSpec(origin=origin, spacing=spacing, shape=shape)
 
 
-def cic_deposit(
-    particles_xyz: np.ndarray,
-    charge_per_particle: float,
-    grid: GridSpec,
-) -> np.ndarray:
-    """
-    Deposit charges onto a cell-centered grid using CIC (trilinear) shape.
-
-    Returns rho on the grid as "charge per cell volume" (i.e. charge density),
-    so that sum(rho * dV) == total charge deposited (up to particles outside domain).
-    """
+def _as_positions(particles_xyz: np.ndarray, *, name: str = "particles_xyz") -> np.ndarray:
     pos = np.asarray(particles_xyz, dtype=float)
     if pos.ndim != 2 or pos.shape[1] != 3:
-        raise ValueError(f"particles_xyz must have shape (N,3), got {pos.shape}")
+        raise ValueError(f"{name} must have shape (N,3), got {pos.shape}")
+    return pos
 
+
+def _cic_indices_and_weights(
+    positions_xyz: np.ndarray,
+    grid: GridSpec,
+    *,
+    require_inside: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Return i0 indices and CIC weights for cell-centered grids.
+
+    positions_xyz: (N,3)
+    Returns (i0, wx0, wy0, wz0, mask) where i0 is int (N,3) and weights are float (N,).
+    If require_inside is True, raises if any particle is outside the valid [0, N-2] neighborhood.
+    """
+    pos = _as_positions(positions_xyz, name="positions_xyz")
     Nx, Ny, Nz = grid.shape
-    rho = np.zeros((Nx, Ny, Nz), dtype=float)
 
     inv_h = 1.0 / grid.spacing
-    # Continuous cell index, where cell centers are at (i+0.5)*h from origin.
     s = (pos - grid.origin) * inv_h - 0.5
 
     i0 = np.floor(s).astype(np.int64)
-    frac = s - i0  # in [0,1) for points inside
+    frac = s - i0
 
-    # Skip particles that cannot deposit to 8 neighbors inside bounds.
-    mask = (
+    inside = (
         (i0[:, 0] >= 0)
         & (i0[:, 0] < Nx - 1)
         & (i0[:, 1] >= 0)
@@ -80,21 +83,63 @@ def cic_deposit(
         & (i0[:, 2] >= 0)
         & (i0[:, 2] < Nz - 1)
     )
-    if not np.any(mask):
-        return rho
+    if require_inside and not np.all(inside):
+        bad = np.nonzero(~inside)[0]
+        raise ValueError(
+            f"{bad.size} particles are outside the grid domain for CIC "
+            f"(need neighbors within [0..N-1]); first bad index={int(bad[0])}"
+        )
 
-    i0 = i0[mask]
-    fx, fy, fz = (frac[mask, 0], frac[mask, 1], frac[mask, 2])
-
+    fx, fy, fz = (frac[:, 0], frac[:, 1], frac[:, 2])
     wx0 = 1.0 - fx
     wy0 = 1.0 - fy
     wz0 = 1.0 - fz
-    wx1 = fx
-    wy1 = fy
-    wz1 = fz
+    return i0, wx0, wy0, wz0, inside
 
-    q = float(charge_per_particle)
-    # Convert charge to charge density contribution per cell by dividing by cell volume.
+
+def scatter_cic(
+    particles_xyz: np.ndarray,
+    *,
+    grid: GridSpec,
+    charge_per_particle: float | None = None,
+    particle_charges: np.ndarray | None = None,
+) -> np.ndarray:
+    """
+    Deposit charges onto a cell-centered grid using CIC (trilinear) shape.
+
+    Exactly one of:
+      - charge_per_particle (scalar)
+      - particle_charges (shape (N,))
+
+    Returns rho on the grid as charge density, so that sum(rho * dV) == total charge.
+
+    Outside-domain policy: raises if any particle cannot deposit to its 8 neighbors.
+    """
+    pos = _as_positions(particles_xyz)
+    N = pos.shape[0]
+
+    has_scalar = charge_per_particle is not None
+    has_array = particle_charges is not None
+    if has_scalar == has_array:
+        raise ValueError("Provide exactly one of charge_per_particle or particle_charges")
+
+    if particle_charges is not None:
+        q = np.asarray(particle_charges, dtype=float)
+        if q.shape != (N,):
+            raise ValueError(f"particle_charges must have shape ({N},), got {q.shape}")
+    else:
+        q = np.full((N,), float(charge_per_particle), dtype=float)
+
+    Nx, Ny, Nz = grid.shape
+    rho = np.zeros((Nx, Ny, Nz), dtype=float)
+
+    i0, wx0, wy0, wz0, inside = _cic_indices_and_weights(pos, grid, require_inside=True)
+
+    fx = 1.0 - wx0
+    fy = 1.0 - wy0
+    fz = 1.0 - wz0
+    wx1, wy1, wz1 = fx, fy, fz
+
     dV = float(np.prod(grid.spacing))
     q_over_dV = q / dV
 
@@ -102,7 +147,6 @@ def cic_deposit(
     iy = i0[:, 1]
     iz = i0[:, 2]
 
-    # Accumulate 8 corners.
     np.add.at(rho, (ix, iy, iz), q_over_dV * (wx0 * wy0 * wz0))
     np.add.at(rho, (ix + 1, iy, iz), q_over_dV * (wx1 * wy0 * wz0))
     np.add.at(rho, (ix, iy + 1, iz), q_over_dV * (wx0 * wy1 * wz0))
@@ -115,7 +159,12 @@ def cic_deposit(
     return rho
 
 
-def cic_gather_vector(
+def cic_deposit(particles_xyz: np.ndarray, charge_per_particle: float, grid: GridSpec) -> np.ndarray:
+    """Backward-compatible alias for scalar-charge scatter."""
+    return scatter_cic(particles_xyz, grid=grid, charge_per_particle=charge_per_particle)
+
+
+def gather_cic_vector(
     positions_xyz: np.ndarray,
     vec_grid: np.ndarray,
     grid: GridSpec,
@@ -125,62 +174,40 @@ def cic_gather_vector(
 
     vec_grid is shape (Nx,Ny,Nz,3).
     """
-    pos = np.asarray(positions_xyz, dtype=float)
-    if pos.ndim != 2 or pos.shape[1] != 3:
-        raise ValueError(f"positions_xyz must have shape (N,3), got {pos.shape}")
+    pos = _as_positions(positions_xyz, name="positions_xyz")
 
     if vec_grid.ndim != 4 or vec_grid.shape[3] != 3:
         raise ValueError(f"vec_grid must have shape (Nx,Ny,Nz,3), got {vec_grid.shape}")
 
     Nx, Ny, Nz, _ = vec_grid.shape
 
-    inv_h = 1.0 / grid.spacing
-    s = (pos - grid.origin) * inv_h - 0.5
+    i0, wx0, wy0, wz0, inside = _cic_indices_and_weights(pos, grid, require_inside=True)
 
-    i0 = np.floor(s).astype(np.int64)
-    frac = s - i0
+    fx = 1.0 - wx0
+    fy = 1.0 - wy0
+    fz = 1.0 - wz0
+    wx1, wy1, wz1 = fx, fy, fz
+
+    ix = i0[:, 0]
+    iy = i0[:, 1]
+    iz = i0[:, 2]
 
     out = np.zeros((pos.shape[0], 3), dtype=float)
-
-    mask = (
-        (i0[:, 0] >= 0)
-        & (i0[:, 0] < Nx - 1)
-        & (i0[:, 1] >= 0)
-        & (i0[:, 1] < Ny - 1)
-        & (i0[:, 2] >= 0)
-        & (i0[:, 2] < Nz - 1)
-    )
-    if not np.any(mask):
-        return out
-
-    idx = np.nonzero(mask)[0]
-    i0m = i0[mask]
-    fx, fy, fz = (frac[mask, 0], frac[mask, 1], frac[mask, 2])
-
-    wx0 = 1.0 - fx
-    wy0 = 1.0 - fy
-    wz0 = 1.0 - fz
-    wx1 = fx
-    wy1 = fy
-    wz1 = fz
-
-    ix = i0m[:, 0]
-    iy = i0m[:, 1]
-    iz = i0m[:, 2]
-
-    def acc(w: np.ndarray, i: np.ndarray, j: np.ndarray, k: np.ndarray) -> None:
-        out[idx] += vec_grid[i, j, k] * w[:, None]
-
-    acc(wx0 * wy0 * wz0, ix, iy, iz)
-    acc(wx1 * wy0 * wz0, ix + 1, iy, iz)
-    acc(wx0 * wy1 * wz0, ix, iy + 1, iz)
-    acc(wx0 * wy0 * wz1, ix, iy, iz + 1)
-    acc(wx1 * wy1 * wz0, ix + 1, iy + 1, iz)
-    acc(wx1 * wy0 * wz1, ix + 1, iy, iz + 1)
-    acc(wx0 * wy1 * wz1, ix, iy + 1, iz + 1)
-    acc(wx1 * wy1 * wz1, ix + 1, iy + 1, iz + 1)
+    out += vec_grid[ix, iy, iz] * (wx0 * wy0 * wz0)[:, None]
+    out += vec_grid[ix + 1, iy, iz] * (wx1 * wy0 * wz0)[:, None]
+    out += vec_grid[ix, iy + 1, iz] * (wx0 * wy1 * wz0)[:, None]
+    out += vec_grid[ix, iy, iz + 1] * (wx0 * wy0 * wz1)[:, None]
+    out += vec_grid[ix + 1, iy + 1, iz] * (wx1 * wy1 * wz0)[:, None]
+    out += vec_grid[ix + 1, iy, iz + 1] * (wx1 * wy0 * wz1)[:, None]
+    out += vec_grid[ix, iy + 1, iz + 1] * (wx0 * wy1 * wz1)[:, None]
+    out += vec_grid[ix + 1, iy + 1, iz + 1] * (wx1 * wy1 * wz1)[:, None]
 
     return out
+
+
+def cic_gather_vector(positions_xyz: np.ndarray, vec_grid: np.ndarray, grid: GridSpec) -> np.ndarray:
+    """Backward-compatible alias for CIC gather."""
+    return gather_cic_vector(positions_xyz, vec_grid, grid)
 
 
 def gradient_fd(phi: np.ndarray, spacing: np.ndarray) -> np.ndarray:
@@ -291,10 +318,16 @@ def convolve_open_poisson_hockney(
     return phi2[:Nx, :Ny, :Nz].copy()
 
 
+def efield_from_potential(phi: np.ndarray, spacing: np.ndarray) -> np.ndarray:
+    """Compute E = -grad(phi) on the grid."""
+    return -gradient_fd(phi, spacing)
+
+
 def solve_open_poisson_hockney(
     particles_xyz: np.ndarray,
     *,
-    charge_per_particle: float,
+    charge_per_particle: float | None = None,
+    particle_charges: np.ndarray | None = None,
     grid_shape: tuple[int, int, int],
     padding: float = 0.2,
     bbox: tuple[float, float, float, float, float, float] | None = None,
@@ -307,15 +340,19 @@ def solve_open_poisson_hockney(
       3) E_grid = -grad(phi_grid) via finite differences
       4) CIC gather E_grid -> E_particles
     """
-    pos = np.asarray(particles_xyz, dtype=float)
-    grid = _make_gridspec(pos, grid_shape=grid_shape, padding=padding, bbox=bbox)
+    pos = _as_positions(particles_xyz)
+    grid = make_gridspec_from_particles(pos, grid_shape=grid_shape, padding=padding, bbox=bbox)
 
-    rho = cic_deposit(pos, charge_per_particle=charge_per_particle, grid=grid)
+    rho = scatter_cic(
+        pos,
+        grid=grid,
+        charge_per_particle=charge_per_particle,
+        particle_charges=particle_charges,
+    )
     phi = convolve_open_poisson_hockney(rho, grid.spacing, eps0=eps0)
 
-    grad_phi = gradient_fd(phi, grid.spacing)
-    E_grid = -grad_phi
-    E_particles = cic_gather_vector(pos, E_grid, grid=grid)
+    E_grid = efield_from_potential(phi, grid.spacing)
+    E_particles = gather_cic_vector(pos, E_grid, grid=grid)
 
     return {
         "rho_grid": rho,

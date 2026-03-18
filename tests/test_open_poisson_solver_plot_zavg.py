@@ -2,8 +2,12 @@ import numpy as np
 
 
 def main() -> None:
+    import os
+
+    import matplotlib
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    from mpl_toolkits.mplot3d import Axes3D
 
     from open_poisson_solver import solve_open_poisson_hockney
 
@@ -56,10 +60,10 @@ def main() -> None:
     ax.set_zlabel("phi")
     fig.colorbar(surf, ax=ax, shrink=0.7, pad=0.1, label="phi")
 
-    outpath = "phi_zavg.png"
+    outpath = os.path.join(os.path.dirname(__file__), "phi_zavg.png")
     fig.savefig(outpath, dpi=150)
     print(f"Wrote {outpath}")
-    plt.show()
+    plt.close(fig)
 
 
 if __name__ == "__main__":

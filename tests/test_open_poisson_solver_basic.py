@@ -25,6 +25,12 @@ def main() -> None:
         grid_shape=grid_shape,
         padding=0.3,
     )
+    out3 = solve_open_poisson_hockney(
+        particles,
+        particle_charges=np.full((N,), 1.0),
+        grid_shape=grid_shape,
+        padding=0.3,
+    )
 
     # Shape checks
     assert out1["phi_grid"].shape == grid_shape
@@ -46,6 +52,11 @@ def main() -> None:
     E_ratio = np.nanmean(out2["E_particles"] / out1["E_particles"])
     assert 1.8 < phi_ratio < 2.2
     assert 1.8 < E_ratio < 2.2
+
+    # Scatter signature check: scalar vs all-equal array charges should match.
+    assert np.allclose(out1["rho_grid"], out3["rho_grid"])
+    assert np.allclose(out1["phi_grid"], out3["phi_grid"])
+    assert np.allclose(out1["E_particles"], out3["E_particles"])
 
     print("OK")
 
