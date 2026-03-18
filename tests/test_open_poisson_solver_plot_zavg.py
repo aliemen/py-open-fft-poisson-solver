@@ -9,7 +9,7 @@ def main() -> None:
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
-    from open_poisson_solver import solve_open_poisson_hockney
+    from pyHockneySolver import solve_open_poisson_hockney
 
     rng = np.random.default_rng(1)
 
