@@ -1,6 +1,6 @@
 [![Latest Release](https://img.shields.io/github/v/release/aliemen/py-open-fft-poisson-solver)](https://github.com/aliemen/py-open-fft-poisson-solver/releases/latest)
 
-# open-poisson-solver
+# pyHockneySolver
 
 Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-grid algorithm, following the `FFTOpenPoissonSolver` Hockney implementation in the [IPPL](https://github.com/IPPL-framework/ippl) C++ library. For more information on the implementation, scroll to the bottom of this README.
 
@@ -35,7 +35,7 @@ python python-open-solver/examples/minimal_electron_bunch_3d_plot.py
 ```
 
 This runs a minimal $32^3$ open-boundary solve for a normally distributed electron bunch
-and shows a 3D surface plot of the potential averaged over the z-axis. Note that you have to install the package like this, since it is not published on any package manager. 
+and shows a 3D surface plot of the potential averaged over the z-axis.
 
 ## Using in your own code (clone + import)
 
