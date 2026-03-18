@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from time import perf_counter
 
 
 @dataclass(frozen=True)
@@ -339,20 +340,40 @@ def solve_open_poisson_hockney(
       2) Hockney FFT open Poisson -> phi_grid
       3) E_grid = -grad(phi_grid) via finite differences
       4) CIC gather E_grid -> E_particles
+
+    Prints simple timing information for each stage and the total time.
     """
+    t0 = perf_counter()
     pos = _as_positions(particles_xyz)
     grid = make_gridspec_from_particles(pos, grid_shape=grid_shape, padding=padding, bbox=bbox)
 
+    t_scatter_start = perf_counter()
     rho = scatter_cic(
         pos,
         grid=grid,
         charge_per_particle=charge_per_particle,
         particle_charges=particle_charges,
     )
+    t_solve_start = perf_counter()
     phi = convolve_open_poisson_hockney(rho, grid.spacing, eps0=eps0)
 
     E_grid = efield_from_potential(phi, grid.spacing)
+    t_gather_start = perf_counter()
     E_particles = gather_cic_vector(pos, E_grid, grid=grid)
+    t_end = perf_counter()
+
+    scatter_ms = (t_solve_start - t_scatter_start) * 1e3
+    solve_ms = (t_gather_start - t_solve_start) * 1e3
+    gather_ms = (t_end - t_gather_start) * 1e3
+    total_ms = (t_end - t0) * 1e3
+
+    print(
+        f"[solve_open_poisson_hockney] "
+        f"scatter={scatter_ms:.2f} ms, "
+        f"solve+Efield={solve_ms:.2f} ms, "
+        f"gather={gather_ms:.2f} ms, "
+        f"total={total_ms:.2f} ms"
+    )
 
     return {
         "rho_grid": rho,
