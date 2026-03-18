@@ -312,10 +312,6 @@ def convolve_open_poisson_hockney(
     # IPPL does: rho_hat = FFT(rho); phi_hat = -(rho_hat * G_hat); phi = IFFT(phi_hat)
     phi2 = np.fft.irfftn(-(rho2k * G2k), s=shape2)
 
-    # Match IPPL normalization for Hockney: multiply by prod_d (2*N_d*h_d)
-    norm = (2.0 * Nx * spacing[0]) * (2.0 * Ny * spacing[1]) * (2.0 * Nz * spacing[2])
-    phi2 *= norm
-
     return phi2[:Nx, :Ny, :Nz].copy()
 
 
