@@ -1,6 +1,6 @@
 # open-poisson-solver
 
-Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-grid algorithm.
+Single-process FFT-based open-boundary Poisson solver using the Hockney doubled-grid algorithm, following the `FFTOpenPoissonSolver` Hockney implementation in the [IPPL](https://github.com/IPPL-framework/ippl) C++ library.
 
 ## Quickstart
 
@@ -29,9 +29,48 @@ From the workspace root:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e python-open-solver
-python python-open-solver/tests/test_open_poisson_solver_basic.py
-python python-open-solver/tests/test_open_poisson_solver_plot_zavg.py
+python python-open-solver/examples/minimal_electron_bunch_3d_plot.py
 ```
 
-The plotting test writes `python-open-solver/tests/phi_zavg.png`.
+This runs a minimal 32³ open-boundary solve for a normally distributed electron bunch
+and shows a 3D surface plot of the potential averaged over the z-axis.
+
+## License
+
+This Python implementation is provided under the same license as IPPL: the GNU General Public License, version 3 or (at your option) any later version. See `python-open-solver/LICENSE` for details and the IPPL project at
+[github.com/IPPL-framework/ippl](https://github.com/IPPL-framework/ippl).
+
+## Mathematical formulation
+
+The solver works on a uniform Cartesian grid and computes a scalar potential
+\\(\\phi(\\mathbf{x})\\) from a charge density \\(\\rho(\\mathbf{x})\\) by solving
+the Poisson equation with free-space (open) boundary conditions:
+
+\\[
+\\nabla^2 \\phi(\\mathbf{x}) = -\\rho(\\mathbf{x})
+\\]
+
+Numerically, this is implemented via the Hockney doubled-grid convolution method:
+
+1. **Scatter**: particles with charges \\(q_i\\) at positions \\(\\mathbf{x}_i\\) are
+   deposited onto the mesh with a cloud-in-cell (CIC) kernel to form \\(\\rho\\).
+2. **Green's function**: build a discrete free-space Green's function
+   \\(G(\\mathbf{r}) \\approx -1/(4\\pi\\,\\|\\mathbf{r}\\|)\\) on a grid of size
+   \\((2N_x,2N_y,2N_z)\\) using folded distances.
+3. **Convolution by FFT**: compute
+   \\(\\phi = - G * \\rho\\) via FFTs on the doubled grid and restrict back to the
+   physical \\(N_x\\times N_y\\times N_z\\) domain, with normalization matched to IPPL.
+4. **Field**: the electric field on the grid is recovered as
+   \\(\\mathbf{E} = -\\nabla \\phi\\) using centered finite differences, and then
+   interpolated back to particles with CIC.
+
+If you supply a physical permittivity \\(\\varepsilon_0\\) via the `eps0` argument,
+the Green's function is scaled accordingly, so the effective equation becomes
+
+\\[
+\\nabla^2 \\phi = -\\frac{\\rho}{\\varepsilon_0},
+\\]
+
+matching the SI convention. Otherwise, the solver works in code units with
+\\(\\nabla^2 \\phi = -\\rho\\).
 
